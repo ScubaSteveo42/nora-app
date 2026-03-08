@@ -1151,6 +1151,11 @@ body {
    Responsive
    ============================================ */
 
+/* Desktop Sidebar Nav */
+.desktop-nav {
+    display: none;
+}
+
 @media (min-width: 768px) {
     .allergen-grid {
         grid-template-columns: repeat(3, 1fr);
@@ -1160,8 +1165,45 @@ body {
         display: none;
     }
 
+    .desktop-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: 220px;
+        min-width: 220px;
+        padding: 20px 12px;
+        background: var(--bg-secondary);
+        border-right: 1px solid var(--border);
+        position: sticky;
+        top: 57px;
+        height: calc(100vh - 57px);
+    }
+
+    .desktop-nav .nav-item {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 12px;
+        padding: 12px 16px;
+        font-size: 14px;
+        border-radius: var(--radius-md);
+    }
+
+    .desktop-nav .nav-item .material-icons-round {
+        font-size: 20px;
+    }
+
+    .desktop-nav .nav-item.active {
+        background: var(--accent-soft);
+    }
+
+    .app-body {
+        display: flex;
+        flex: 1;
+    }
+
     .main-content {
-        padding: 32px 20px;
+        padding: 32px 40px;
+        max-width: 900px;
     }
 
     .modal-overlay {

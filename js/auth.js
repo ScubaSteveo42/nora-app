@@ -85,8 +85,10 @@ async function handleResetPassword() {
 }
 
 async function handleSignOut() {
-    await supabaseClient.auth.signOut();
-    window.location.href = '/';
+    try { await supabaseClient.auth.signOut(); } catch(e) {}
+    localStorage.removeItem('nora_profile');
+    // Reload to reset app state (works whether auth is bypassed or not)
+    window.location.reload();
 }
 
 // Enter key support

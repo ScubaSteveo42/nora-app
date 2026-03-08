@@ -12,8 +12,7 @@ function showSection(sectionId) {
     document.getElementById(`section-${sectionId}`).classList.add('active');
 
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const navBtn = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
-    if (navBtn) navBtn.classList.add('active');
+    document.querySelectorAll(`.nav-item[data-section="${sectionId}"]`).forEach(btn => btn.classList.add('active'));
 
     if (sectionId === 'profile') renderProfile();
     if (sectionId === 'search') document.getElementById('restaurant-search')?.focus();
@@ -184,7 +183,7 @@ async function loadRestaurants() {
     try {
         const { data, error } = await supabaseClient
             .from('restaurants')
-            .select('*')
+            .select('*, menu_items(*)')
             .order('name');
 
         if (error) throw error;
