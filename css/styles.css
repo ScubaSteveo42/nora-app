@@ -1215,3 +1215,83 @@ body {
         max-height: 70vh;
     }
 }
+
+/* Restaurant Info Card */
+.restaurant-info-card {
+    margin-bottom: 16px;
+}
+
+.info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-row .material-icons-round {
+    font-size: 18px;
+    color: var(--text-muted);
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+.info-row a {
+    text-decoration: none;
+}
+
+.info-row a:hover {
+    text-decoration: underline;
+}
+
+.info-row-hours {
+    align-items: flex-start;
+}
+
+.hours-grid {
+    flex: 1;
+}
+
+.hours-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.hours-row.hours-today {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.hours-day {
+    min-width: 40px;
+}
+
+.hours-time {
+    text-align: right;
+}
+
+/* Menu Category Headers */
+.menu-category-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 16px 0 8px 0;
+}
+
+.menu-category-header:first-child {
+    margin-top: 0;
+}
+
+.menu-category-card {
+    margin-bottom: 4px;
+}

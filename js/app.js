@@ -224,7 +224,7 @@ function renderRestaurants(list) {
                     <div class="restaurant-logo">${r.logo_emoji || '🍽️'}</div>
                     <div class="restaurant-info">
                         <div class="restaurant-name">${escapeHTML(r.name)}</div>
-                        <div class="restaurant-cuisine">${escapeHTML(r.cuisine || '')}</div>
+                        <div class="restaurant-cuisine">${escapeHTML(r.cuisine || '')}${r.price_range ? ' · ' + escapeHTML(r.price_range) : ''}${r.rating ? ' · ⭐ ' + r.rating : ''}</div>
                         <div class="restaurant-meta">
                             <span class="meta-tag tag-safe">
                                 <span class="material-icons-round">verified</span>
@@ -314,16 +314,58 @@ async function viewRestaurant(id) {
             return { ...item, status, statusLabel, statusIcon, conflicts, crossConflicts };
         });
 
+        // Build hours display
+        const hoursHTML = restaurant.hours ? buildHoursHTML(restaurant.hours) : '';
+
+        // Group menu items by category
+        const categories = {};
+        categorized.forEach(item => {
+            const cat = item.category || 'Other';
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push(item);
+        });
+        const categoryOrder = ['Appetizers', 'Sushi', 'Entrees', 'Desserts', 'Other'];
+        const sortedCategories = Object.keys(categories).sort((a, b) => {
+            const ai = categoryOrder.indexOf(a);
+            const bi = categoryOrder.indexOf(b);
+            return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+        });
+
         container.innerHTML = `
             <div class="restaurant-detail-header">
                 <div style="font-size:48px;margin-bottom:8px">${restaurant.logo_emoji || '🍽️'}</div>
                 <h2>${escapeHTML(restaurant.name)}</h2>
-                <p class="cuisine">${escapeHTML(restaurant.cuisine || '')}</p>
+                <p class="cuisine">${escapeHTML(restaurant.cuisine || '')}${restaurant.price_range ? ' · ' + escapeHTML(restaurant.price_range) : ''}${restaurant.rating ? ' · ⭐ ' + restaurant.rating : ''}</p>
                 <div class="safety-score">
                     <span class="material-icons-round">shield</span>
                     ${safePercent}% of menu is safe for you
                 </div>
             </div>
+
+            ${(restaurant.address || restaurant.phone || restaurant.website || hoursHTML) ? `
+            <div class="card restaurant-info-card">
+                ${restaurant.address ? `
+                <div class="info-row">
+                    <span class="material-icons-round">location_on</span>
+                    <span>${escapeHTML(restaurant.address)}</span>
+                </div>` : ''}
+                ${restaurant.phone ? `
+                <div class="info-row">
+                    <span class="material-icons-round">phone</span>
+                    <a href="tel:${restaurant.phone}" style="color:var(--accent)">${escapeHTML(restaurant.phone)}</a>
+                </div>` : ''}
+                ${restaurant.website ? `
+                <div class="info-row">
+                    <span class="material-icons-round">language</span>
+                    <a href="${restaurant.website}" target="_blank" rel="noopener" style="color:var(--accent)">Visit website</a>
+                </div>` : ''}
+                ${hoursHTML ? `
+                <div class="info-row info-row-hours">
+                    <span class="material-icons-round">schedule</span>
+                    <div class="hours-grid">${hoursHTML}</div>
+                </div>` : ''}
+            </div>
+            ` : ''}
 
             <div class="menu-filters">
                 <button class="filter-chip active" onclick="filterMenu('all', this)">All</button>
@@ -332,22 +374,27 @@ async function viewRestaurant(id) {
                 <button class="filter-chip" onclick="filterMenu('unsafe', this)">Contains Allergen</button>
             </div>
 
-            <div class="card" id="menu-items-list">
-                ${categorized.length ? categorized.map(item => `
-                    <div class="menu-item" data-status="${item.status}">
-                        <div class="menu-item-info">
-                            <div class="menu-item-name">${escapeHTML(item.name)}</div>
-                            <div class="menu-item-desc">${escapeHTML(item.description || '')}</div>
-                            ${item.conflicts.length ? `<div style="font-size:12px;color:var(--danger);margin-top:4px">Contains: ${item.conflicts.join(', ')}</div>` : ''}
-                            ${item.crossConflicts.length ? `<div style="font-size:12px;color:var(--warning);margin-top:4px">Cross-contamination: ${item.crossConflicts.join(', ')}</div>` : ''}
-                            ${item.price ? `<div class="menu-item-price">$${item.price}</div>` : ''}
-                        </div>
-                        <div class="menu-item-status">
-                            <div class="status-badge badge-${item.status}">
-                                <span class="material-icons-round">${item.statusIcon}</span>
-                                ${item.statusLabel}
+            <div id="menu-items-list">
+                ${categorized.length ? sortedCategories.map(cat => `
+                    <div class="menu-category-header">${escapeHTML(cat)}</div>
+                    <div class="card menu-category-card">
+                        ${categories[cat].map(item => `
+                            <div class="menu-item" data-status="${item.status}">
+                                <div class="menu-item-info">
+                                    <div class="menu-item-name">${escapeHTML(item.name)}</div>
+                                    <div class="menu-item-desc">${escapeHTML(item.description || '')}</div>
+                                    ${item.conflicts.length ? `<div style="font-size:12px;color:var(--danger);margin-top:4px">Contains: ${item.conflicts.join(', ')}</div>` : ''}
+                                    ${item.crossConflicts.length ? `<div style="font-size:12px;color:var(--warning);margin-top:4px">Cross-contamination: ${item.crossConflicts.join(', ')}</div>` : ''}
+                                    ${item.price ? `<div class="menu-item-price">$${item.price}</div>` : ''}
+                                </div>
+                                <div class="menu-item-status">
+                                    <div class="status-badge badge-${item.status}">
+                                        <span class="material-icons-round">${item.statusIcon}</span>
+                                        ${item.statusLabel}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        `).join('')}
                     </div>
                 `).join('') : '<div class="empty-state"><p>No menu items available yet.</p></div>'}
             </div>
@@ -461,6 +508,17 @@ async function processAIQuery(query) {
 }
 
 // ---- Utilities ----
+function buildHoursHTML(hours) {
+    if (!hours || typeof hours !== 'object') return '';
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const today = days[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+    return days.map(day => {
+        const time = hours[day] || 'Closed';
+        const isToday = day === today;
+        return `<div class="hours-row${isToday ? ' hours-today' : ''}"><span class="hours-day">${day}</span><span class="hours-time">${escapeHTML(time)}</span></div>`;
+    }).join('');
+}
+
 function escapeHTML(str) {
     if (!str) return '';
     const div = document.createElement('div');
