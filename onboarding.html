@@ -21,6 +21,7 @@
             <div class="step-dot" data-step="2"></div>
             <div class="step-dot" data-step="3"></div>
             <div class="step-dot" data-step="4"></div>
+            <div class="step-dot" data-step="5"></div>
         </div>
 
         <!-- Step 1: Common Allergens -->
@@ -55,8 +56,34 @@
             </div>
         </div>
 
-        <!-- Step 3: Dietary Preferences -->
+        <!-- Step 3: Allergen Severity -->
         <div class="onboarding-step" data-step="3">
+            <div class="onboarding-header">
+                <h2>How severe are your allergies?</h2>
+                <p>This helps us prioritize safety warnings. Tap to change severity.</p>
+            </div>
+            <div id="severity-list" class="severity-list">
+                <div class="empty-state" style="padding:20px">
+                    <p style="color:var(--text-secondary)">Select allergens in the previous steps first.</p>
+                </div>
+            </div>
+            <div class="severity-legend">
+                <div class="legend-item"><span class="severity-dot severity-severe"></span> Severe / Life-threatening</div>
+                <div class="legend-item"><span class="severity-dot severity-moderate"></span> Moderate reaction</div>
+                <div class="legend-item"><span class="severity-dot severity-mild"></span> Mild / Intolerance</div>
+            </div>
+            <div class="onboarding-footer">
+                <button class="btn btn-outline" onclick="prevStep()">
+                    <span class="material-icons-round">arrow_back</span> Back
+                </button>
+                <button class="btn btn-primary" onclick="nextStep()">
+                    Next <span class="material-icons-round">arrow_forward</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 4: Dietary Preferences -->
+        <div class="onboarding-step" data-step="4">
             <div class="onboarding-header">
                 <h2>Dietary preferences?</h2>
                 <p>Select any diets or medical dietary requirements.</p>
@@ -72,8 +99,8 @@
             </div>
         </div>
 
-        <!-- Step 4: Religious Restrictions -->
-        <div class="onboarding-step" data-step="4">
+        <!-- Step 5: Religious Restrictions -->
+        <div class="onboarding-step" data-step="5">
             <div class="onboarding-header">
                 <h2>Religious dietary needs?</h2>
                 <p>Optional - select any that apply.</p>
@@ -96,10 +123,11 @@
     <script src="/js/auth.js"></script>
     <script>
         let currentStep = 1;
-        const totalSteps = 4;
+        const totalSteps = 5;
         let selectedAllergens = new Set();
         let selectedDietary = new Set();
         let selectedReligious = new Set();
+        let allergenSeverity = {}; // { allergenId: 'severe' | 'moderate' | 'mild' }
 
         // Render allergen chips
         function renderChips(containerId, items, selectionSet) {
@@ -141,8 +169,55 @@
         function nextStep() {
             if (currentStep < totalSteps) {
                 currentStep++;
+                if (currentStep === 3) renderSeverityStep();
                 updateProgress();
             }
+        }
+
+        function renderSeverityStep() {
+            const container = document.getElementById('severity-list');
+            const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+            const selected = allAllergenDefs.filter(a => selectedAllergens.has(a.id));
+
+            if (!selected.length) {
+                container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary)">No allergens selected. Go back to add some, or skip ahead.</div>';
+                return;
+            }
+
+            container.innerHTML = selected.map(a => {
+                const sev = allergenSeverity[a.id] || 'moderate';
+                return `
+                    <div class="severity-row">
+                        <div class="severity-allergen">
+                            <span class="chip-icon">${a.icon}</span>
+                            <span>${a.label}</span>
+                        </div>
+                        <div class="severity-toggle" data-id="${a.id}">
+                            <button class="sev-btn sev-severe${sev === 'severe' ? ' active' : ''}" onclick="setSeverity('${a.id}', 'severe', this)">
+                                <span class="material-icons-round">emergency</span> Severe
+                            </button>
+                            <button class="sev-btn sev-moderate${sev === 'moderate' ? ' active' : ''}" onclick="setSeverity('${a.id}', 'moderate', this)">
+                                <span class="material-icons-round">warning</span> Moderate
+                            </button>
+                            <button class="sev-btn sev-mild${sev === 'mild' ? ' active' : ''}" onclick="setSeverity('${a.id}', 'mild', this)">
+                                <span class="material-icons-round">info</span> Mild
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Set default severity for any unset allergens
+            selected.forEach(a => {
+                if (!allergenSeverity[a.id]) allergenSeverity[a.id] = 'moderate';
+            });
+        }
+
+        function setSeverity(id, level, btn) {
+            allergenSeverity[id] = level;
+            const row = btn.closest('.severity-toggle');
+            row.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
 
         function prevStep() {
@@ -164,6 +239,7 @@
             try {
                 const profile = {
                     allergens: Array.from(selectedAllergens),
+                    allergen_severity: allergenSeverity,
                     dietary_preferences: Array.from(selectedDietary),
                     religious_restrictions: Array.from(selectedReligious),
                     onboarding_complete: true,
@@ -207,6 +283,7 @@
                     (p.allergens || []).forEach(id => selectedAllergens.add(id));
                     (p.dietary_preferences || []).forEach(id => selectedDietary.add(id));
                     (p.religious_restrictions || []).forEach(id => selectedReligious.add(id));
+                    if (p.allergen_severity) allergenSeverity = p.allergen_severity;
                 } catch(e) {}
             }
 
