@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <title>Nora</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css?v=4">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <a href="javascript:void(0)" onclick="showSection('search')" class="top-bar-logo">
+                    <div class="logo-sm">
+                        <span class="material-icons-round">shield</span>
+                    </div>
+                    <span>Nora</span>
+                </a>
+            </div>
+            <div class="top-bar-right">
+                <button class="icon-btn" onclick="showSection('ai')" title="AI Assistant">
+                    <span class="material-icons-round">auto_awesome</span>
+                </button>
+                <button class="icon-btn" onclick="handleSignOut()" title="Sign Out">
+                    <span class="material-icons-round">logout</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- Search / Home Section -->
+            <div id="section-search" class="page-section active">
+                <!-- AI Quick Ask -->
+                <div class="ai-section">
+                    <div class="ai-card">
+                        <div class="ai-card-header">
+                            <span class="material-icons-round">auto_awesome</span>
+                            Ask Nora
+                        </div>
+                        <div class="ai-input-group">
+                            <input type="text" id="ai-quick-input"
+                                   placeholder="e.g. 'Safe Italian restaurants near Strip District'"
+                                   onkeydown="if(event.key==='Enter') askNora()">
+                            <button onclick="askNora()">
+                                <span class="material-icons-round">send</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="search-container">
+                    <span class="material-icons-round">search</span>
+                    <input type="text" class="search-input" id="restaurant-search"
+                           placeholder="Search restaurants..."
+                           oninput="searchRestaurants(this.value)">
+                </div>
+
+                <!-- Restaurant List -->
+                <div id="restaurant-list">
+                    <div class="loading-overlay">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Restaurant Detail Section -->
+            <div id="section-restaurant" class="page-section">
+                <button class="back-btn" onclick="showSection('search')">
+                    <span class="material-icons-round">arrow_back</span>
+                    Back to search
+                </button>
+                <div id="restaurant-detail"></div>
+            </div>
+
+            <!-- AI Section -->
+            <div id="section-ai" class="page-section">
+                <button class="back-btn" onclick="showSection('search')">
+                    <span class="material-icons-round">arrow_back</span>
+                    Back
+                </button>
+                <div class="section-header">
+                    <h2>AI Assistant</h2>
+                </div>
+                <div class="ai-card" style="margin-bottom: 20px">
+                    <div class="ai-card-header">
+                        <span class="material-icons-round">auto_awesome</span>
+                        Ask Nora anything about food safety
+                    </div>
+                    <div class="ai-input-group">
+                        <input type="text" id="ai-full-input"
+                               placeholder="e.g. 'Does pad thai usually contain peanuts?'"
+                               onkeydown="if(event.key==='Enter') askNoraFull()">
+                        <button onclick="askNoraFull()">
+                            <span class="material-icons-round">send</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="ai-responses"></div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="section-profile" class="page-section">
+                <div class="section-header">
+                    <h2>My Profile</h2>
+                    <button class="btn btn-sm btn-outline" onclick="window.location.href='/onboarding.html'">
+                        <span class="material-icons-round">edit</span> Edit
+                    </button>
+                </div>
+                <div id="profile-content"></div>
+            </div>
+        </main>
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="showSection('search')" data-section="search">
+                <span class="material-icons-round">home</span>
+                Home
+            </button>
+            <button class="nav-item" onclick="showSection('ai')" data-section="ai">
+                <span class="material-icons-round">auto_awesome</span>
+                AI
+            </button>
+            <button class="nav-item" onclick="showSection('profile')" data-section="profile">
+                <span class="material-icons-round">person</span>
+                Profile
+            </button>
+        </nav>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/js/config.js?v=4"></script>
+    <script src="/js/auth.js?v=4"></script>
+    <script src="/js/app.js?v=4"></script>
+</body>
+</html>

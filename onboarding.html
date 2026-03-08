@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <title>Nora - Set Up Your Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+    <div class="onboarding-container">
+        <!-- Progress -->
+        <div class="step-progress">
+            <div class="step-dot active" data-step="1"></div>
+            <div class="step-dot" data-step="2"></div>
+            <div class="step-dot" data-step="3"></div>
+            <div class="step-dot" data-step="4"></div>
+        </div>
+
+        <!-- Step 1: Common Allergens -->
+        <div class="onboarding-step active" data-step="1">
+            <div class="onboarding-header">
+                <h2>What are you allergic to?</h2>
+                <p>Select your food allergens. We'll use this to flag unsafe menu items.</p>
+            </div>
+            <div class="allergen-grid" id="common-allergens"></div>
+            <div class="onboarding-footer">
+                <button class="btn btn-outline" onclick="skipStep()">Skip</button>
+                <button class="btn btn-primary" onclick="nextStep()">
+                    Next <span class="material-icons-round">arrow_forward</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Additional Allergens -->
+        <div class="onboarding-step" data-step="2">
+            <div class="onboarding-header">
+                <h2>Any additional sensitivities?</h2>
+                <p>These are less common but equally important.</p>
+            </div>
+            <div class="allergen-grid" id="additional-allergens"></div>
+            <div class="onboarding-footer">
+                <button class="btn btn-outline" onclick="prevStep()">
+                    <span class="material-icons-round">arrow_back</span> Back
+                </button>
+                <button class="btn btn-primary" onclick="nextStep()">
+                    Next <span class="material-icons-round">arrow_forward</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Dietary Preferences -->
+        <div class="onboarding-step" data-step="3">
+            <div class="onboarding-header">
+                <h2>Dietary preferences?</h2>
+                <p>Select any diets or medical dietary requirements.</p>
+            </div>
+            <div class="allergen-grid" id="dietary-prefs"></div>
+            <div class="onboarding-footer">
+                <button class="btn btn-outline" onclick="prevStep()">
+                    <span class="material-icons-round">arrow_back</span> Back
+                </button>
+                <button class="btn btn-primary" onclick="nextStep()">
+                    Next <span class="material-icons-round">arrow_forward</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 4: Religious Restrictions -->
+        <div class="onboarding-step" data-step="4">
+            <div class="onboarding-header">
+                <h2>Religious dietary needs?</h2>
+                <p>Optional - select any that apply.</p>
+            </div>
+            <div class="allergen-grid" id="religious-prefs"></div>
+            <div class="onboarding-footer">
+                <button class="btn btn-outline" onclick="prevStep()">
+                    <span class="material-icons-round">arrow_back</span> Back
+                </button>
+                <button class="btn btn-primary" id="finish-btn" onclick="finishOnboarding()">
+                    <span class="material-icons-round">check_circle</span> Finish Setup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/auth.js"></script>
+    <script>
+        let currentStep = 1;
+        const totalSteps = 4;
+        let selectedAllergens = new Set();
+        let selectedDietary = new Set();
+        let selectedReligious = new Set();
+
+        // Render allergen chips
+        function renderChips(containerId, items, selectionSet) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = items.map(item => `
+                <div class="allergen-chip" data-id="${item.id}" onclick="toggleChip(this, '${item.id}', '${containerId}')">
+                    <span class="chip-icon">${item.icon}</span>
+                    <span class="chip-label">${item.label}</span>
+                    <span class="material-icons-round chip-check">check_circle</span>
+                </div>
+            `).join('');
+        }
+
+        function toggleChip(el, id, containerId) {
+            const set = containerId.includes('dietary') ? selectedDietary :
+                        containerId.includes('religious') ? selectedReligious :
+                        selectedAllergens;
+            if (set.has(id)) {
+                set.delete(id);
+                el.classList.remove('selected');
+            } else {
+                set.add(id);
+                el.classList.add('selected');
+            }
+        }
+
+        function updateProgress() {
+            document.querySelectorAll('.step-dot').forEach(dot => {
+                const step = parseInt(dot.dataset.step);
+                dot.classList.remove('active', 'completed');
+                if (step === currentStep) dot.classList.add('active');
+                else if (step < currentStep) dot.classList.add('completed');
+            });
+
+            document.querySelectorAll('.onboarding-step').forEach(s => s.classList.remove('active'));
+            document.querySelector(`.onboarding-step[data-step="${currentStep}"]`).classList.add('active');
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateProgress();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateProgress();
+            }
+        }
+
+        function skipStep() {
+            nextStep();
+        }
+
+        async function finishOnboarding() {
+            const btn = document.getElementById('finish-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> Saving...';
+
+            try {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) throw new Error('Not logged in');
+
+                const profile = {
+                    user_id: user.id,
+                    allergens: Array.from(selectedAllergens),
+                    dietary_preferences: Array.from(selectedDietary),
+                    religious_restrictions: Array.from(selectedReligious),
+                    onboarding_complete: true,
+                    updated_at: new Date().toISOString()
+                };
+
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .upsert(profile, { onConflict: 'user_id' });
+
+                if (error) throw error;
+
+                showToast('Profile saved!', 'success');
+                setTimeout(() => window.location.href = '/app.html', 500);
+            } catch (err) {
+                showToast(err.message || 'Failed to save profile', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<span class="material-icons-round">check_circle</span> Finish Setup';
+            }
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = '/';
+                return;
+            }
+
+            renderChips('common-allergens', ALLERGENS.common, selectedAllergens);
+            renderChips('additional-allergens', ALLERGENS.additional, selectedAllergens);
+            renderChips('dietary-prefs', ALLERGENS.dietary, selectedDietary);
+            renderChips('religious-prefs', ALLERGENS.religious, selectedReligious);
+        });
+    </script>
+</body>
+</html>

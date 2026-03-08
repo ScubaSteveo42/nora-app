@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <title>Nora - Safe Dining, Made Simple</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+</head>
+<body class="auth-page">
+    <!-- Landing / Auth Screen -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <div class="logo-icon">
+                    <span class="material-icons-round">shield</span>
+                </div>
+                <h1>Nora</h1>
+                <p class="tagline">Safe Dining, Made Simple</p>
+            </div>
+
+            <!-- Sign In Form -->
+            <div id="signin-form" class="auth-form active">
+                <div class="form-group">
+                    <label for="signin-email">Email</label>
+                    <input type="email" id="signin-email" placeholder="your@email.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="signin-password">Password</label>
+                    <input type="password" id="signin-password" placeholder="Enter your password" autocomplete="current-password">
+                </div>
+                <button id="signin-btn" class="btn btn-primary" onclick="handleSignIn()">
+                    <span class="material-icons-round">login</span>
+                    Sign In
+                </button>
+                <div class="auth-divider"><span>or</span></div>
+                <button class="btn btn-outline" onclick="showForm('signup-form')">
+                    <span class="material-icons-round">person_add</span>
+                    Create Account
+                </button>
+                <a href="#" class="forgot-link" onclick="showForm('reset-form')">Forgot password?</a>
+            </div>
+
+            <!-- Sign Up Form -->
+            <div id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label for="signup-name">Full Name</label>
+                    <input type="text" id="signup-name" placeholder="Your name" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="signup-email">Email</label>
+                    <input type="email" id="signup-email" placeholder="your@email.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <input type="password" id="signup-password" placeholder="Create a password" autocomplete="new-password">
+                </div>
+                <button id="signup-btn" class="btn btn-primary" onclick="handleSignUp()">
+                    <span class="material-icons-round">person_add</span>
+                    Create Account
+                </button>
+                <div class="auth-divider"><span>or</span></div>
+                <button class="btn btn-outline" onclick="showForm('signin-form')">
+                    <span class="material-icons-round">login</span>
+                    Back to Sign In
+                </button>
+            </div>
+
+            <!-- Reset Password Form -->
+            <div id="reset-form" class="auth-form">
+                <p class="form-note">Enter your email and we'll send you a reset link.</p>
+                <div class="form-group">
+                    <label for="reset-email">Email</label>
+                    <input type="email" id="reset-email" placeholder="your@email.com" autocomplete="email">
+                </div>
+                <button class="btn btn-primary" onclick="handleResetPassword()">
+                    <span class="material-icons-round">mail</span>
+                    Send Reset Link
+                </button>
+                <div class="auth-divider"><span>or</span></div>
+                <button class="btn btn-outline" onclick="showForm('signin-form')">
+                    <span class="material-icons-round">arrow_back</span>
+                    Back to Sign In
+                </button>
+            </div>
+        </div>
+
+        <p class="auth-footer">
+            <span class="material-icons-round">verified_user</span>
+            Your data is encrypted and never shared
+        </p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Bypass auth for testing - go straight to dashboard
+        window.location.href = '/app.html';
+    </script>
+</body>
+</html>

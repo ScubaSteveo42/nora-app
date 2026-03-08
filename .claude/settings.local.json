@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(textutil -convert txt -stdout \"/Users/steven/Downloads/Allergen App.docx\")",
+      "WebFetch(domain:sfas.meetjuvra.info)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(brew list)",
+      "Bash(export PATH=\"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH\")",
+      "Bash(export PATH=\"/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:$PATH\")",
+      "Bash(tar czf - index.html app.html onboarding.html manifest.json sw.js css/ js/)",
+      "Bash(ssh -o ConnectTimeout=5 -o BatchMode=yes root@72.60.166.223 \"echo connected\")",
+      "Bash(gh auth status)",
+      "Bash(git --version)",
+      "Bash(brew install gh)",
+      "Bash(gh auth login --hostname github.com --git-protocol https --web)",
+      "Bash(git add -A)",
+      "Bash(git commit -m \"Initial commit - Nora allergen dining app:*)"
+    ]
+  }
+}
