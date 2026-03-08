@@ -26,11 +26,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data: { session } } = await supabaseClient.auth.getSession();
         if (session) {
             currentUser = session.user;
-            await loadProfile();
         }
     } catch (e) {
         console.log('Auth skipped for testing');
     }
+
+    // Always try to load profile (DB or localStorage)
+    await loadProfile();
 
     // Load restaurants regardless of auth
     await loadRestaurants();
@@ -38,17 +40,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ---- Profile ----
 async function loadProfile() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('profiles')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .single();
+    // Try DB first if logged in
+    if (currentUser) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('*')
+                .eq('user_id', currentUser.id)
+                .single();
 
-        if (error && error.code !== 'PGRST116') throw error;
-        userProfile = data;
-    } catch (err) {
-        console.error('Error loading profile:', err);
+            if (error && error.code !== 'PGRST116') throw error;
+            if (data) { userProfile = data; return; }
+        } catch (err) {
+            console.error('Error loading profile from DB:', err);
+        }
+    }
+
+    // Fall back to localStorage
+    const local = localStorage.getItem('nora_profile');
+    if (local) {
+        try {
+            userProfile = JSON.parse(local);
+        } catch(e) {}
     }
 }
 
@@ -72,6 +85,9 @@ function renderProfile() {
     const dietaryLabels = getDietaryLabels(userProfile.dietary_preferences || []);
     const religiousLabels = getReligiousLabels(userProfile.religious_restrictions || []);
 
+    const userName = currentUser?.user_metadata?.full_name || 'Guest User';
+    const userEmail = currentUser?.email || 'Profile saved locally';
+
     container.innerHTML = `
         <div class="card">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
@@ -79,8 +95,8 @@ function renderProfile() {
                     <span class="material-icons-round" style="color:var(--accent)">person</span>
                 </div>
                 <div>
-                    <div style="font-weight:600">${currentUser.user_metadata?.full_name || 'User'}</div>
-                    <div style="font-size:13px;color:var(--text-secondary)">${currentUser.email}</div>
+                    <div style="font-weight:600">${userName}</div>
+                    <div style="font-size:13px;color:var(--text-secondary)">${userEmail}</div>
                 </div>
             </div>
         </div>

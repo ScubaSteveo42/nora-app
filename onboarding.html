@@ -162,11 +162,7 @@
             btn.innerHTML = '<div class="spinner"></div> Saving...';
 
             try {
-                const { data: { user } } = await supabaseClient.auth.getUser();
-                if (!user) throw new Error('Not logged in');
-
                 const profile = {
-                    user_id: user.id,
                     allergens: Array.from(selectedAllergens),
                     dietary_preferences: Array.from(selectedDietary),
                     religious_restrictions: Array.from(selectedReligious),
@@ -174,11 +170,23 @@
                     updated_at: new Date().toISOString()
                 };
 
-                const { error } = await supabaseClient
-                    .from('profiles')
-                    .upsert(profile, { onConflict: 'user_id' });
+                // Try saving to Supabase if logged in
+                let savedToDb = false;
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    if (user) {
+                        profile.user_id = user.id;
+                        const { error } = await supabaseClient
+                            .from('profiles')
+                            .upsert(profile, { onConflict: 'user_id' });
+                        if (!error) savedToDb = true;
+                    }
+                } catch (e) {
+                    console.log('DB save skipped (no auth)');
+                }
 
-                if (error) throw error;
+                // Always save locally so the app can use it
+                localStorage.setItem('nora_profile', JSON.stringify(profile));
 
                 showToast('Profile saved!', 'success');
                 setTimeout(() => window.location.href = '/app.html', 500);
@@ -191,16 +199,29 @@
 
         // Init
         document.addEventListener('DOMContentLoaded', async () => {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = '/';
-                return;
+            // Load existing profile selections if returning to edit
+            const existing = localStorage.getItem('nora_profile');
+            if (existing) {
+                try {
+                    const p = JSON.parse(existing);
+                    (p.allergens || []).forEach(id => selectedAllergens.add(id));
+                    (p.dietary_preferences || []).forEach(id => selectedDietary.add(id));
+                    (p.religious_restrictions || []).forEach(id => selectedReligious.add(id));
+                } catch(e) {}
             }
 
             renderChips('common-allergens', ALLERGENS.common, selectedAllergens);
             renderChips('additional-allergens', ALLERGENS.additional, selectedAllergens);
             renderChips('dietary-prefs', ALLERGENS.dietary, selectedDietary);
             renderChips('religious-prefs', ALLERGENS.religious, selectedReligious);
+
+            // Restore selected state on chips
+            document.querySelectorAll('.allergen-chip').forEach(chip => {
+                const id = chip.dataset.id;
+                if (selectedAllergens.has(id) || selectedDietary.has(id) || selectedReligious.has(id)) {
+                    chip.classList.add('selected');
+                }
+            });
         });
     </script>
 </body>
