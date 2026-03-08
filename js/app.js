@@ -400,23 +400,23 @@ async function viewRestaurant(id) {
                     <div class="menu-category-header">${escapeHTML(cat)}</div>
                     <div class="card menu-category-card">
                         ${categories[cat].map(item => `
-                            <div class="menu-item menu-item-clickable" data-status="${item.status}" onclick="viewMenuItem('${item.id}')">
-                                <div class="menu-item-info">
-                                    <div class="menu-item-name">${escapeHTML(item.name)}</div>
-                                    <div class="menu-item-desc">${escapeHTML(item.description || '')}</div>
-                                    ${item.conflicts.length ? `<div class="menu-item-allergens">${item.conflicts.map(a => {
-                                        const def = [...ALLERGENS.common, ...ALLERGENS.additional].find(d => d.id === a);
-                                        return `<span class="mini-allergen-tag">${def ? def.icon : ''} ${def ? def.label : a}</span>`;
-                                    }).join('')}</div>` : ''}
-                                    ${item.crossConflicts.length ? `<div style="font-size:12px;color:var(--warning);margin-top:4px"><span class="material-icons-round" style="font-size:13px;vertical-align:middle">warning</span> Cross-contamination risk</div>` : ''}
-                                    ${item.price ? `<div class="menu-item-price">$${item.price}</div>` : ''}
-                                </div>
-                                <div class="menu-item-status">
-                                    <div class="status-badge badge-${item.status}">
-                                        <span class="material-icons-round">${item.statusIcon}</span>
-                                        ${item.statusLabel}
+                            <div class="menu-item-wrapper" data-status="${item.status}">
+                                <div class="menu-item menu-item-clickable" onclick="toggleItemDropdown('${item.id}')">
+                                    <div class="menu-item-info">
+                                        <div class="menu-item-name">${escapeHTML(item.name)}</div>
+                                        <div class="menu-item-desc">${escapeHTML(item.description || '')}</div>
+                                        ${item.price ? `<div class="menu-item-price">$${item.price}</div>` : ''}
                                     </div>
-                                    <div class="menu-item-tap">Tap for details</div>
+                                    <div class="menu-item-status">
+                                        <div class="status-badge badge-${item.status}">
+                                            <span class="material-icons-round">${item.statusIcon}</span>
+                                            ${item.statusLabel}
+                                        </div>
+                                        <span class="material-icons-round dropdown-chevron" id="chevron-${item.id}">expand_more</span>
+                                    </div>
+                                </div>
+                                <div class="menu-item-dropdown" id="dropdown-${item.id}">
+                                    ${buildDropdownContent(item)}
                                 </div>
                             </div>
                         `).join('')}
@@ -445,7 +445,7 @@ function filterMenu(status, btn) {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
 
-    document.querySelectorAll('#menu-items-list .menu-item').forEach(item => {
+    document.querySelectorAll('#menu-items-list .menu-item-wrapper').forEach(item => {
         if (status === 'all' || item.dataset.status === status) {
             item.style.display = '';
         } else {
@@ -530,6 +530,188 @@ async function processAIQuery(query) {
             `;
         }
     }
+}
+
+// ---- Inline Dropdown Explanations ----
+function toggleItemDropdown(itemId) {
+    const dropdown = document.getElementById('dropdown-' + itemId);
+    const chevron = document.getElementById('chevron-' + itemId);
+    if (!dropdown) return;
+
+    const isOpen = dropdown.classList.contains('open');
+
+    // Close all other open dropdowns
+    document.querySelectorAll('.menu-item-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        d.style.maxHeight = null;
+    });
+    document.querySelectorAll('.dropdown-chevron.rotated').forEach(c => {
+        c.classList.remove('rotated');
+    });
+
+    if (!isOpen) {
+        dropdown.classList.add('open');
+        dropdown.style.maxHeight = dropdown.scrollHeight + 'px';
+        if (chevron) chevron.classList.add('rotated');
+    }
+}
+
+function buildDropdownContent(item) {
+    const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+    const severity = userProfile?.allergen_severity || {};
+    let html = '';
+
+    if (item.status === 'safe') {
+        const userAllergenNames = (userProfile?.allergens || []).map(id => {
+            const def = allAllergenDefs.find(d => d.id === id);
+            return def ? def.label : id;
+        });
+        html += `<div class="dropdown-safe">
+            <span class="material-icons-round">verified_user</span>
+            <div>
+                <strong>Safe for you</strong>
+                <p>${userAllergenNames.length ? 'This dish does not contain ' + userAllergenNames.join(', ') + '.' : 'No allergen conflicts detected.'}</p>
+            </div>
+        </div>`;
+    } else if (item.status === 'unsafe') {
+        html += `<div class="dropdown-section-label"><span class="material-icons-round">warning</span> Allergen Warnings</div>`;
+        html += item.conflicts.map(a => {
+            const sev = severity[a] || 'moderate';
+            const def = allAllergenDefs.find(d => d.id === a);
+            const icon = def ? def.icon : '';
+            const label = def ? def.label : a;
+            const sevLabel = sev === 'severe' ? 'Severe / Life-threatening'
+                : sev === 'moderate' ? 'Moderate reaction'
+                : 'Mild / Intolerance';
+            return `<div class="dropdown-allergen dropdown-allergen-${sev}">
+                <span class="dropdown-allergen-icon">${icon}</span>
+                <div class="dropdown-allergen-info">
+                    <strong>Contains ${label}</strong>
+                    <span>${sevLabel}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } else if (item.status === 'caution') {
+        const crossNames = item.crossConflicts.map(a => {
+            const def = allAllergenDefs.find(d => d.id === a);
+            return def ? def.label : a;
+        });
+        html += `<div class="dropdown-caution">
+            <span class="material-icons-round">sync_problem</span>
+            <div>
+                <strong>Cross-contamination risk</strong>
+                <p>May contain traces of ${crossNames.join(', ')} due to shared kitchen equipment or preparation area.</p>
+            </div>
+        </div>`;
+    } else if (item.status === 'ask') {
+        html += `<div class="dropdown-ask">
+            <span class="material-icons-round">record_voice_over</span>
+            <div>
+                <strong>Ask your server:</strong>
+                <p class="dropdown-question">${generateStaffQuestion(item)}</p>
+            </div>
+        </div>`;
+    }
+
+    // Cross-contamination note for unsafe items that ALSO have cross-contamination
+    if (item.status === 'unsafe' && item.crossConflicts.length) {
+        const crossNames = item.crossConflicts.map(a => {
+            const def = allAllergenDefs.find(d => d.id === a);
+            return def ? def.label : a;
+        });
+        html += `<div class="dropdown-caution" style="margin-top:8px">
+            <span class="material-icons-round">sync_problem</span>
+            <div>
+                <strong>Also: Cross-contamination risk</strong>
+                <p>Possible traces of ${crossNames.join(', ')}.</p>
+            </div>
+        </div>`;
+    }
+
+    // Ask staff note for items that have ask_staff alongside other statuses
+    if (item.ask_staff && item.status !== 'ask') {
+        html += `<div class="dropdown-ask" style="margin-top:8px">
+            <span class="material-icons-round">record_voice_over</span>
+            <div>
+                <strong>Also ask your server:</strong>
+                <p class="dropdown-question">${generateStaffQuestion(item)}</p>
+            </div>
+        </div>`;
+    }
+
+    // Ingredients with highlighting
+    if (item.ingredients) {
+        let ingredientText = escapeHTML(item.ingredients);
+        if (userProfile?.allergens?.length) {
+            userProfile.allergens.forEach(allergenId => {
+                const derivs = ALLERGEN_DERIVATIVES[allergenId] || [];
+                const allergenDef = allAllergenDefs.find(d => d.id === allergenId);
+                const allergenName = allergenDef ? allergenDef.label.toLowerCase() : allergenId;
+
+                const nameRegex = new RegExp(`\\b(${allergenName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+                ingredientText = ingredientText.replace(nameRegex, '<mark class="ingredient-danger">$1</mark>');
+
+                derivs.forEach(d => {
+                    const dRegex = new RegExp(`\\b(${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+                    ingredientText = ingredientText.replace(dRegex, '<mark class="ingredient-warning">$1</mark>');
+                });
+            });
+        }
+        html += `<div class="dropdown-ingredients">
+            <div class="dropdown-ingredients-label">
+                <span class="material-icons-round">receipt_long</span> Ingredients
+            </div>
+            <p>${ingredientText}</p>
+        </div>`;
+    } else {
+        html += `<div class="dropdown-no-ingredients">
+            <span class="material-icons-round">info</span>
+            Full ingredient list not yet available. Ask your server for details.
+        </div>`;
+    }
+
+    // View full details button
+    html += `<button class="dropdown-full-details" onclick="event.stopPropagation(); viewMenuItem('${item.id}')">
+        <span class="material-icons-round">open_in_full</span> View full details
+    </button>`;
+
+    return html;
+}
+
+function generateStaffQuestion(item) {
+    const allergens = userProfile?.allergens || [];
+    if (!allergens.length) return '"Does this dish contain any common allergens? I have food allergies and need to be careful."';
+
+    const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+    const names = allergens.map(id => {
+        const def = allAllergenDefs.find(d => d.id === id);
+        return def ? def.label.toLowerCase() : id;
+    });
+
+    // Build natural allergen list
+    let allergenList;
+    if (names.length === 1) {
+        allergenList = names[0];
+    } else if (names.length === 2) {
+        allergenList = `${names[0]} or ${names[1]}`;
+    } else {
+        allergenList = names.slice(0, -1).join(', ') + ', or ' + names[names.length - 1];
+    }
+
+    // Pick a few relevant derivatives to mention
+    const relevantDerivs = [];
+    allergens.forEach(id => {
+        const derivs = ALLERGEN_DERIVATIVES[id] || [];
+        relevantDerivs.push(...derivs.slice(0, 2));
+    });
+
+    let question = `"I have a ${allergens.length > 1 ? 'food allergy' : names[0] + ' allergy'}. Does the ${escapeHTML(item.name)} contain ${allergenList}?`;
+    if (relevantDerivs.length > 0 && relevantDerivs.length <= 4) {
+        question += ` I also need to avoid ${relevantDerivs.join(', ')}.`;
+    }
+    question += ` Can you check with the kitchen?"`;
+
+    return question;
 }
 
 // ---- Menu Item Detail Modal ----
