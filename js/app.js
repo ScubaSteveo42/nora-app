@@ -5,6 +5,7 @@
 let userProfile = null;
 let currentUser = null;
 let restaurants = [];
+let currentMenuItems = []; // Store categorized menu items for detail view
 
 // ---- Navigation ----
 function showSection(sectionId) {
@@ -287,7 +288,8 @@ async function viewRestaurant(id) {
         const menuItems = restaurant.menu_items || [];
         const userAllergens = new Set(userProfile?.allergens || []);
 
-        // Categorize menu items
+        // Categorize menu items with severity awareness
+        const allergenSeverity = userProfile?.allergen_severity || {};
         const categorized = menuItems.map(item => {
             const itemAllergens = new Set(item.allergens || []);
             const conflicts = [...userAllergens].filter(a => itemAllergens.has(a));
@@ -298,12 +300,28 @@ async function viewRestaurant(id) {
             let statusLabel = 'Safe';
             let statusIcon = 'check_circle';
             if (conflicts.length > 0) {
+                // Check max severity among conflicting allergens
+                const maxSev = conflicts.reduce((max, a) => {
+                    const s = allergenSeverity[a] || 'moderate';
+                    if (s === 'severe') return 'severe';
+                    if (s === 'moderate' && max !== 'severe') return 'moderate';
+                    return max;
+                }, 'mild');
+
                 status = 'unsafe';
-                statusLabel = 'Contains allergen';
-                statusIcon = 'dangerous';
+                if (maxSev === 'severe') {
+                    statusLabel = 'SEVERE';
+                    statusIcon = 'emergency';
+                } else if (maxSev === 'mild') {
+                    statusLabel = 'Mild allergen';
+                    statusIcon = 'info';
+                } else {
+                    statusLabel = 'Contains allergen';
+                    statusIcon = 'dangerous';
+                }
             } else if (crossConflicts.length > 0) {
                 status = 'caution';
-                statusLabel = 'Cross-contamination risk';
+                statusLabel = 'Cross-contamination';
                 statusIcon = 'warning';
             } else if (item.ask_staff) {
                 status = 'ask';
@@ -313,6 +331,9 @@ async function viewRestaurant(id) {
 
             return { ...item, status, statusLabel, statusIcon, conflicts, crossConflicts };
         });
+
+        // Store for detail modal
+        currentMenuItems = categorized;
 
         // Build hours display
         const hoursHTML = restaurant.hours ? buildHoursHTML(restaurant.hours) : '';
@@ -324,7 +345,7 @@ async function viewRestaurant(id) {
             if (!categories[cat]) categories[cat] = [];
             categories[cat].push(item);
         });
-        const categoryOrder = ['Appetizers', 'Sushi', 'Entrees', 'Desserts', 'Other'];
+        const categoryOrder = ['Appetizers', 'Sandwiches', 'Sushi', 'Entrees', 'Sides', 'Desserts', 'Other'];
         const sortedCategories = Object.keys(categories).sort((a, b) => {
             const ai = categoryOrder.indexOf(a);
             const bi = categoryOrder.indexOf(b);
@@ -379,12 +400,15 @@ async function viewRestaurant(id) {
                     <div class="menu-category-header">${escapeHTML(cat)}</div>
                     <div class="card menu-category-card">
                         ${categories[cat].map(item => `
-                            <div class="menu-item" data-status="${item.status}">
+                            <div class="menu-item menu-item-clickable" data-status="${item.status}" onclick="viewMenuItem('${item.id}')">
                                 <div class="menu-item-info">
                                     <div class="menu-item-name">${escapeHTML(item.name)}</div>
                                     <div class="menu-item-desc">${escapeHTML(item.description || '')}</div>
-                                    ${item.conflicts.length ? `<div style="font-size:12px;color:var(--danger);margin-top:4px">Contains: ${item.conflicts.join(', ')}</div>` : ''}
-                                    ${item.crossConflicts.length ? `<div style="font-size:12px;color:var(--warning);margin-top:4px">Cross-contamination: ${item.crossConflicts.join(', ')}</div>` : ''}
+                                    ${item.conflicts.length ? `<div class="menu-item-allergens">${item.conflicts.map(a => {
+                                        const def = [...ALLERGENS.common, ...ALLERGENS.additional].find(d => d.id === a);
+                                        return `<span class="mini-allergen-tag">${def ? def.icon : ''} ${def ? def.label : a}</span>`;
+                                    }).join('')}</div>` : ''}
+                                    ${item.crossConflicts.length ? `<div style="font-size:12px;color:var(--warning);margin-top:4px"><span class="material-icons-round" style="font-size:13px;vertical-align:middle">warning</span> Cross-contamination risk</div>` : ''}
                                     ${item.price ? `<div class="menu-item-price">$${item.price}</div>` : ''}
                                 </div>
                                 <div class="menu-item-status">
@@ -392,6 +416,7 @@ async function viewRestaurant(id) {
                                         <span class="material-icons-round">${item.statusIcon}</span>
                                         ${item.statusLabel}
                                     </div>
+                                    <div class="menu-item-tap">Tap for details</div>
                                 </div>
                             </div>
                         `).join('')}
@@ -505,6 +530,162 @@ async function processAIQuery(query) {
             `;
         }
     }
+}
+
+// ---- Menu Item Detail Modal ----
+function viewMenuItem(itemId) {
+    const item = currentMenuItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    const severity = userProfile?.allergen_severity || {};
+    const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+
+    // Build allergen warnings with severity
+    let warningsHTML = '';
+    if (item.conflicts.length) {
+        warningsHTML = `<div class="detail-section">
+            <div class="detail-section-title">
+                <span class="material-icons-round">warning</span> Allergen Warnings
+            </div>
+            ${item.conflicts.map(a => {
+                const sev = severity[a] || 'moderate';
+                const def = allAllergenDefs.find(d => d.id === a);
+                const icon = def ? def.icon : '';
+                const label = def ? def.label : a;
+                const sevLabel = sev === 'severe' ? 'Severe / Life-threatening'
+                    : sev === 'moderate' ? 'Moderate reaction'
+                    : 'Mild / Intolerance';
+                return `<div class="detail-warning detail-warning-${sev}">
+                    <span class="detail-warning-icon">${icon}</span>
+                    <div class="detail-warning-info">
+                        <div class="detail-warning-name">${label}</div>
+                        <div class="detail-warning-level">${sevLabel}</div>
+                    </div>
+                    <span class="detail-sev-dot sev-dot-${sev}"></span>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }
+
+    // Cross-contamination warnings
+    let crossHTML = '';
+    if (item.crossConflicts.length) {
+        crossHTML = `<div class="detail-section">
+            <div class="detail-section-title">
+                <span class="material-icons-round">sync_problem</span> Cross-Contamination Risk
+            </div>
+            ${item.crossConflicts.map(a => {
+                const def = allAllergenDefs.find(d => d.id === a);
+                const icon = def ? def.icon : '';
+                const label = def ? def.label : a;
+                return `<div class="detail-cross">
+                    <span>${icon}</span>
+                    <span>${label} - may be present due to shared preparation</span>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }
+
+    // Ingredients
+    let ingredientsHTML = '';
+    if (item.ingredients) {
+        // Highlight allergen-related ingredients
+        let ingredientText = escapeHTML(item.ingredients);
+        if (userProfile?.allergens?.length) {
+            userProfile.allergens.forEach(allergenId => {
+                const derivs = ALLERGEN_DERIVATIVES[allergenId] || [];
+                const allergenDef = allAllergenDefs.find(d => d.id === allergenId);
+                const allergenName = allergenDef ? allergenDef.label.toLowerCase() : allergenId;
+
+                // Highlight the allergen name itself
+                const nameRegex = new RegExp(`\\b(${allergenName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+                ingredientText = ingredientText.replace(nameRegex, '<mark class="ingredient-danger">$1</mark>');
+
+                // Highlight derivatives
+                derivs.forEach(d => {
+                    const dRegex = new RegExp(`\\b(${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+                    ingredientText = ingredientText.replace(dRegex, '<mark class="ingredient-warning">$1</mark>');
+                });
+            });
+        }
+        ingredientsHTML = `<div class="detail-section">
+            <div class="detail-section-title">
+                <span class="material-icons-round">receipt_long</span> Ingredients
+            </div>
+            <p class="detail-ingredients">${ingredientText}</p>
+        </div>`;
+    }
+
+    // Derivative detection in ingredients
+    let derivativesFound = [];
+    if (item.ingredients && userProfile?.allergens?.length) {
+        const ingredientsLower = item.ingredients.toLowerCase();
+        userProfile.allergens.forEach(allergenId => {
+            const derivs = ALLERGEN_DERIVATIVES[allergenId] || [];
+            derivs.forEach(d => {
+                if (ingredientsLower.includes(d.toLowerCase())) {
+                    derivativesFound.push({ allergen: allergenId, derivative: d });
+                }
+            });
+        });
+    }
+
+    const derivativesHTML = derivativesFound.length
+        ? `<div class="detail-section">
+            <div class="detail-section-title">
+                <span class="material-icons-round">visibility</span> Hidden Allergen Derivatives Found
+            </div>
+            ${derivativesFound.map(d => {
+                const def = allAllergenDefs.find(a => a.id === d.allergen);
+                return `<div class="detail-derivative">
+                    <span class="material-icons-round">report</span>
+                    <span>"<strong>${escapeHTML(d.derivative)}</strong>" is a form of <strong>${def ? def.label : d.allergen}</strong></span>
+                </div>`;
+            }).join('')}
+        </div>`
+        : '';
+
+    // Ask staff
+    const askStaffHTML = item.ask_staff
+        ? `<div class="detail-ask-staff">
+            <span class="material-icons-round">support_agent</span>
+            <div>
+                <strong>Ask staff before ordering</strong>
+                <p>This dish may contain allergens not listed. Please confirm with your server.</p>
+            </div>
+        </div>`
+        : '';
+
+    // Build modal content
+    const modal = document.getElementById('item-detail-modal');
+    const modalBody = document.getElementById('item-detail-body');
+
+    modalBody.innerHTML = `
+        <div class="detail-header">
+            <div class="detail-status badge-${item.status}">
+                <span class="material-icons-round">${item.statusIcon}</span>
+                ${item.statusLabel}
+            </div>
+            <h3 class="detail-name">${escapeHTML(item.name)}</h3>
+            ${item.description ? `<p class="detail-desc">${escapeHTML(item.description)}</p>` : ''}
+            ${item.price ? `<div class="detail-price">$${item.price}</div>` : ''}
+        </div>
+        ${warningsHTML}
+        ${crossHTML}
+        ${ingredientsHTML}
+        ${derivativesHTML}
+        ${askStaffHTML}
+        ${!item.ingredients ? `<div class="detail-no-ingredients">
+            <span class="material-icons-round">info</span>
+            <span>Full ingredient list not yet available. Ask your server for details.</span>
+        </div>` : ''}
+    `;
+
+    modal.classList.add('active');
+}
+
+function closeItemDetail() {
+    document.getElementById('item-detail-modal').classList.remove('active');
 }
 
 // ---- Utilities ----
