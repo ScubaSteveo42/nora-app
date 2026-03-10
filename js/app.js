@@ -15,6 +15,10 @@ function showSection(sectionId) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelectorAll(`.nav-item[data-section="${sectionId}"]`).forEach(btn => btn.classList.add('active'));
 
+    // Only show recall banner on home/search section
+    const recallBanner = document.getElementById('recall-alerts-banner');
+    if (recallBanner) recallBanner.style.display = sectionId === 'search' ? '' : 'none';
+
     if (sectionId === 'profile') renderProfile();
     if (sectionId === 'search') document.getElementById('restaurant-search')?.focus();
 }
