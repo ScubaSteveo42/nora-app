@@ -941,7 +941,16 @@ function renderRecallAlerts(alerts) {
 
     const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
 
-    list.innerHTML = alerts.map(alert => `
+    // Update header with count
+    const headerStrong = banner.querySelector('.recall-banner-header strong');
+    if (headerStrong) headerStrong.textContent = `FDA Recall Alerts (${alerts.length})`;
+
+    list.innerHTML = alerts.map(alert => {
+        // Extract the key reason — e.g. "Undeclared Milk" from the full reason text
+        const reasonText = alert.reason || '';
+        const shortReason = reasonText.length > 120 ? reasonText.slice(0, 120) + '...' : reasonText;
+
+        return `
         <div class="recall-card" id="recall-${alert.fda_id}">
             <div class="recall-card-header">
                 <span class="recall-company">${escapeHTML(alert.company)}</span>
@@ -949,17 +958,40 @@ function renderRecallAlerts(alerts) {
                     <span class="material-icons-round">close</span>
                 </button>
             </div>
-            <p class="recall-product">${escapeHTML(alert.product_description?.slice(0, 150))}${alert.product_description?.length > 150 ? '...' : ''}</p>
+            <p class="recall-reason">${escapeHTML(shortReason)}</p>
+            <p class="recall-product">${escapeHTML(alert.product_description?.slice(0, 100))}${alert.product_description?.length > 100 ? '...' : ''}</p>
             <div class="recall-allergens">
                 ${alert.allergens.map(a => {
                     const def = allAllergenDefs.find(d => d.id === a);
                     return `<span class="recall-allergen-tag">${def ? def.icon : ''} ${def ? def.label : a}</span>`;
                 }).join('')}
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 
     banner.style.display = '';
+
+    // Start collapsed — show only the header with expand toggle
+    list.style.maxHeight = '0';
+    list.style.overflow = 'hidden';
+    list.style.transition = 'max-height 0.3s ease';
+    banner.dataset.expanded = 'false';
+}
+
+function toggleRecallBanner() {
+    const banner = document.getElementById('recall-alerts-banner');
+    const list = document.getElementById('recall-alerts-list');
+    if (!banner || !list) return;
+
+    const expanded = banner.dataset.expanded === 'true';
+    if (expanded) {
+        list.style.maxHeight = '0';
+        banner.dataset.expanded = 'false';
+    } else {
+        list.style.maxHeight = '400px';
+        list.style.overflowY = 'auto';
+        banner.dataset.expanded = 'true';
+    }
 }
 
 function dismissRecall(fdaId) {

@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link rel="stylesheet" href="/css/styles.css?v=11">
+    <link rel="stylesheet" href="/css/styles.css?v=12">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 </head>
 <body>
@@ -63,10 +63,11 @@
 
             <!-- Recall Alerts Banner -->
             <div id="recall-alerts-banner" class="recall-banner" style="display:none">
-                <div class="recall-banner-header">
+                <div class="recall-banner-header" onclick="toggleRecallBanner()" style="cursor:pointer">
                     <span class="material-icons-round">notification_important</span>
                     <strong>FDA Recall Alerts</strong>
-                    <button class="recall-dismiss-all" onclick="dismissAllRecalls()" title="Dismiss all">
+                    <span class="material-icons-round recall-expand-icon" style="font-size:18px;transition:transform 0.3s">expand_more</span>
+                    <button class="recall-dismiss-all" onclick="event.stopPropagation();dismissAllRecalls()" title="Dismiss all">
                         <span class="material-icons-round">close</span>
                     </button>
                 </div>
@@ -211,9 +212,9 @@
 
     <div id="toast" class="toast"></div>
 
-    <script src="/js/config.js?v=11"></script>
-    <script src="/js/auth.js?v=11"></script>
-    <script src="/js/app.js?v=11"></script>
+    <script src="/js/config.js?v=12"></script>
+    <script src="/js/auth.js?v=12"></script>
+    <script src="/js/app.js?v=12"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
