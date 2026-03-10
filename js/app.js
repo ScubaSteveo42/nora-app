@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Always try to load profile (DB or localStorage)
     await loadProfile();
 
+    // Load enhanced derivatives from DB (non-blocking)
+    loadEnhancedDerivatives();
+
+    // Load FDA recall alerts (non-blocking)
+    loadRecallAlerts();
+
     // Load restaurants regardless of auth
     await loadRestaurants();
 });
@@ -169,8 +175,9 @@ function getReligiousLabels(ids) {
 function getDerivativesHTML(allergenIds) {
     const derivatives = [];
     allergenIds.forEach(id => {
-        if (ALLERGEN_DERIVATIVES[id]) {
-            derivatives.push(`<strong>${id.replace('_', ' ')}:</strong> ${ALLERGEN_DERIVATIVES[id].join(', ')}`);
+        const derivList = getAllDerivatives(id);
+        if (derivList.length) {
+            derivatives.push(`<strong>${id.replace('_', ' ')}:</strong> ${derivList.join(', ')}`);
         }
     });
     if (!derivatives.length) return '<p>No known derivatives for your allergens.</p>';
@@ -553,6 +560,9 @@ function toggleItemDropdown(itemId) {
         dropdown.classList.add('open');
         dropdown.style.maxHeight = dropdown.scrollHeight + 'px';
         if (chevron) chevron.classList.add('rotated');
+
+        // Lazy-load external verification
+        loadExternalVerification(itemId);
     }
 }
 
@@ -644,7 +654,7 @@ function buildDropdownContent(item) {
         let ingredientText = escapeHTML(item.ingredients);
         if (userProfile?.allergens?.length) {
             userProfile.allergens.forEach(allergenId => {
-                const derivs = ALLERGEN_DERIVATIVES[allergenId] || [];
+                const derivs = getAllDerivatives(allergenId);
                 const allergenDef = allAllergenDefs.find(d => d.id === allergenId);
                 const allergenName = allergenDef ? allergenDef.label.toLowerCase() : allergenId;
 
@@ -669,6 +679,12 @@ function buildDropdownContent(item) {
             Full ingredient list not yet available. Ask your server for details.
         </div>`;
     }
+
+    // External DB verification placeholder (lazy-loaded on dropdown open)
+    html += `<div class="dropdown-verification" id="verify-${item.id}" style="display:none">
+        <div class="dropdown-section-label"><span class="material-icons-round">fact_check</span> External Database Check</div>
+        <div class="verify-content"><div class="spinner" style="width:16px;height:16px"></div> Checking...</div>
+    </div>`;
 
     // View full details button
     html += `<button class="dropdown-full-details" onclick="event.stopPropagation(); viewMenuItem('${item.id}')">
@@ -701,7 +717,7 @@ function generateStaffQuestion(item) {
     // Pick a few relevant derivatives to mention
     const relevantDerivs = [];
     allergens.forEach(id => {
-        const derivs = ALLERGEN_DERIVATIVES[id] || [];
+        const derivs = getAllDerivatives(id);
         relevantDerivs.push(...derivs.slice(0, 2));
     });
 
@@ -775,7 +791,7 @@ function viewMenuItem(itemId) {
         let ingredientText = escapeHTML(item.ingredients);
         if (userProfile?.allergens?.length) {
             userProfile.allergens.forEach(allergenId => {
-                const derivs = ALLERGEN_DERIVATIVES[allergenId] || [];
+                const derivs = getAllDerivatives(allergenId);
                 const allergenDef = allAllergenDefs.find(d => d.id === allergenId);
                 const allergenName = allergenDef ? allergenDef.label.toLowerCase() : allergenId;
 
@@ -803,7 +819,7 @@ function viewMenuItem(itemId) {
     if (item.ingredients && userProfile?.allergens?.length) {
         const ingredientsLower = item.ingredients.toLowerCase();
         userProfile.allergens.forEach(allergenId => {
-            const derivs = ALLERGEN_DERIVATIVES[allergenId] || [];
+            const derivs = getAllDerivatives(allergenId);
             derivs.forEach(d => {
                 if (ingredientsLower.includes(d.toLowerCase())) {
                     derivativesFound.push({ allergen: allergenId, derivative: d });
@@ -887,4 +903,245 @@ function escapeHTML(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+// ---- FDA Recall Alerts ----
+async function loadRecallAlerts() {
+    if (!userProfile?.allergens?.length) return;
+
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('food-recall-alerts', {
+            body: { userAllergens: userProfile.allergens }
+        });
+
+        if (error) throw error;
+
+        const alerts = data?.alerts || [];
+        if (!alerts.length) return;
+
+        // Filter out dismissed alerts
+        const dismissed = JSON.parse(localStorage.getItem('nora_dismissed_recalls') || '[]');
+        const active = alerts.filter(a => !dismissed.includes(a.fda_id));
+        if (!active.length) return;
+
+        renderRecallAlerts(active);
+    } catch (err) {
+        console.log('Recall alerts not available:', err.message);
+    }
+}
+
+function renderRecallAlerts(alerts) {
+    const banner = document.getElementById('recall-alerts-banner');
+    const list = document.getElementById('recall-alerts-list');
+    if (!banner || !list) return;
+
+    const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+
+    list.innerHTML = alerts.map(alert => `
+        <div class="recall-card" id="recall-${alert.fda_id}">
+            <div class="recall-card-header">
+                <span class="recall-company">${escapeHTML(alert.company)}</span>
+                <button class="recall-dismiss" onclick="dismissRecall('${alert.fda_id}')" title="Dismiss">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <p class="recall-product">${escapeHTML(alert.product_description?.slice(0, 150))}${alert.product_description?.length > 150 ? '...' : ''}</p>
+            <div class="recall-allergens">
+                ${alert.allergens.map(a => {
+                    const def = allAllergenDefs.find(d => d.id === a);
+                    return `<span class="recall-allergen-tag">${def ? def.icon : ''} ${def ? def.label : a}</span>`;
+                }).join('')}
+            </div>
+        </div>
+    `).join('');
+
+    banner.style.display = '';
+}
+
+function dismissRecall(fdaId) {
+    const dismissed = JSON.parse(localStorage.getItem('nora_dismissed_recalls') || '[]');
+    dismissed.push(fdaId);
+    localStorage.setItem('nora_dismissed_recalls', JSON.stringify(dismissed));
+
+    const card = document.getElementById('recall-' + fdaId);
+    if (card) card.remove();
+
+    const list = document.getElementById('recall-alerts-list');
+    if (list && !list.children.length) {
+        document.getElementById('recall-alerts-banner').style.display = 'none';
+    }
+}
+
+function dismissAllRecalls() {
+    const list = document.getElementById('recall-alerts-list');
+    if (!list) return;
+
+    const ids = [...list.querySelectorAll('.recall-card')].map(c => c.id.replace('recall-', ''));
+    const dismissed = JSON.parse(localStorage.getItem('nora_dismissed_recalls') || '[]');
+    dismissed.push(...ids);
+    localStorage.setItem('nora_dismissed_recalls', JSON.stringify(dismissed));
+
+    document.getElementById('recall-alerts-banner').style.display = 'none';
+}
+
+// ---- External Verification (Phase 4) ----
+const verifiedItems = new Set();
+
+async function loadExternalVerification(itemId) {
+    if (verifiedItems.has(itemId)) return;
+    verifiedItems.add(itemId);
+
+    const container = document.getElementById('verify-' + itemId);
+    if (!container) return;
+
+    const item = currentMenuItems.find(i => i.id === itemId);
+    if (!item || !item.ingredients) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = '';
+    const content = container.querySelector('.verify-content');
+
+    try {
+        // Check key ingredients against our cache/lookup
+        const ingredients = item.ingredients.split(',').map(i => i.trim().toLowerCase()).filter(i => i.length > 2);
+        const checkIngredients = ingredients.slice(0, 5); // Check first 5
+
+        const { data, error } = await supabaseClient
+            .from('allergen_derivatives_db')
+            .select('allergen_id, derivative_name')
+            .or(checkIngredients.map(i => `derivative_name.ilike.%${i}%`).join(','));
+
+        if (error) throw error;
+
+        const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+        const userAllergens = new Set(userProfile?.allergens || []);
+
+        if (data && data.length > 0) {
+            const foundAllergens = new Map();
+            data.forEach(d => {
+                if (!foundAllergens.has(d.allergen_id)) {
+                    foundAllergens.set(d.allergen_id, []);
+                }
+                foundAllergens.get(d.allergen_id).push(d.derivative_name);
+            });
+
+            let verifyHTML = '';
+            foundAllergens.forEach((derivs, allergenId) => {
+                const def = allAllergenDefs.find(d => d.id === allergenId);
+                const isUserAllergen = userAllergens.has(allergenId);
+                const icon = isUserAllergen ? 'warning' : 'check_circle';
+                const color = isUserAllergen ? 'color:#ef4444' : 'color:var(--accent)';
+                verifyHTML += `<div class="verify-row" style="${color}">
+                    <span class="material-icons-round" style="font-size:16px">${icon}</span>
+                    <span>${def ? def.icon : ''} ${derivs.join(', ')} → <strong>${def ? def.label : allergenId}</strong></span>
+                </div>`;
+            });
+            content.innerHTML = verifyHTML;
+        } else {
+            content.innerHTML = `<div class="verify-row" style="color:var(--accent)">
+                <span class="material-icons-round" style="font-size:16px">verified</span>
+                <span>No additional allergens found in external databases</span>
+            </div>`;
+        }
+
+        // Resize dropdown to fit new content
+        const dropdown = document.getElementById('dropdown-' + itemId);
+        if (dropdown && dropdown.classList.contains('open')) {
+            dropdown.style.maxHeight = dropdown.scrollHeight + 'px';
+        }
+    } catch (err) {
+        content.innerHTML = `<span style="color:var(--text-muted);font-size:12px">External verification unavailable</span>`;
+    }
+}
+
+// ---- Ingredient Lookup ----
+let ingredientSearchTimeout = null;
+
+function debounceIngredientSearch(query) {
+    clearTimeout(ingredientSearchTimeout);
+    if (!query.trim()) {
+        document.getElementById('ingredient-results').innerHTML = '';
+        return;
+    }
+    ingredientSearchTimeout = setTimeout(() => searchIngredient(query.trim()), 400);
+}
+
+async function searchIngredient(query) {
+    const container = document.getElementById('ingredient-results');
+    container.innerHTML = '<div class="loading-overlay" style="padding:24px"><div class="spinner"></div></div>';
+
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('ingredient-lookup', {
+            body: { query }
+        });
+
+        if (error) throw error;
+        renderIngredientResults(data, query);
+    } catch (err) {
+        container.innerHTML = `
+            <div class="card" style="margin-top:12px;text-align:center;color:var(--text-secondary)">
+                <span class="material-icons-round">cloud_off</span>
+                <p>Ingredient lookup is not available yet. Deploy the edge function to enable this feature.</p>
+            </div>
+        `;
+    }
+}
+
+function renderIngredientResults(data, query) {
+    const container = document.getElementById('ingredient-results');
+    const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+    const userAllergens = new Set(userProfile?.allergens || []);
+
+    const allergens = data?.allergens || [];
+    const sources = data?.sources || [];
+
+    if (!allergens.length && !sources.length) {
+        container.innerHTML = `
+            <div class="card" style="margin-top:12px">
+                <div style="text-align:center;color:var(--text-secondary)">
+                    <span class="material-icons-round" style="font-size:32px">search_off</span>
+                    <p>No allergen data found for "${escapeHTML(query)}"</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    const hasConflict = allergens.some(a => userAllergens.has(a));
+
+    let html = `
+        <div class="card lookup-result-card" style="margin-top:12px">
+            <div class="lookup-result-header">
+                <h3>${escapeHTML(query)}</h3>
+                <div class="status-badge badge-${hasConflict ? 'unsafe' : 'safe'}">
+                    <span class="material-icons-round">${hasConflict ? 'dangerous' : 'check_circle'}</span>
+                    ${hasConflict ? 'Contains your allergens' : 'No conflicts'}
+                </div>
+            </div>
+    `;
+
+    if (allergens.length) {
+        html += `<div class="lookup-allergens">`;
+        allergens.forEach(a => {
+            const def = allAllergenDefs.find(d => d.id === a);
+            const isUserAllergen = userAllergens.has(a);
+            html += `<span class="lookup-allergen-badge ${isUserAllergen ? 'lookup-conflict' : ''}">
+                ${def ? def.icon : ''} ${def ? def.label : a}
+                ${isUserAllergen ? '<span class="material-icons-round" style="font-size:14px">warning</span>' : ''}
+            </span>`;
+        });
+        html += `</div>`;
+    }
+
+    if (sources.length) {
+        html += `<div class="lookup-sources">
+            <span class="lookup-sources-label">Sources:</span>
+            ${sources.map(s => `<span class="lookup-source-tag">${escapeHTML(s)}</span>`).join('')}
+        </div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
 }

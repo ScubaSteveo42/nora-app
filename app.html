@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <link rel="stylesheet" href="/css/styles.css?v=9">
+    <link rel="stylesheet" href="/css/styles.css?v=10">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 </head>
 <body>
@@ -48,6 +48,10 @@
                 <span class="material-icons-round">auto_awesome</span>
                 AI Assistant
             </button>
+            <button class="nav-item" onclick="showSection('lookup')" data-section="lookup">
+                <span class="material-icons-round">biotech</span>
+                Lookup
+            </button>
             <button class="nav-item" onclick="showSection('profile')" data-section="profile">
                 <span class="material-icons-round">person</span>
                 Profile
@@ -56,6 +60,18 @@
 
         <!-- Main Content -->
         <main class="main-content">
+
+            <!-- Recall Alerts Banner -->
+            <div id="recall-alerts-banner" class="recall-banner" style="display:none">
+                <div class="recall-banner-header">
+                    <span class="material-icons-round">notification_important</span>
+                    <strong>FDA Recall Alerts</strong>
+                    <button class="recall-dismiss-all" onclick="dismissAllRecalls()" title="Dismiss all">
+                        <span class="material-icons-round">close</span>
+                    </button>
+                </div>
+                <div id="recall-alerts-list"></div>
+            </div>
 
             <!-- Search / Home Section -->
             <div id="section-search" class="page-section active">
@@ -128,6 +144,24 @@
                 <div id="ai-responses"></div>
             </div>
 
+            <!-- Ingredient Lookup Section -->
+            <div id="section-lookup" class="page-section">
+                <div class="section-header">
+                    <h2>Ingredient Lookup</h2>
+                </div>
+                <div class="lookup-intro card">
+                    <span class="material-icons-round" style="color:var(--accent);font-size:28px">biotech</span>
+                    <p>Search any ingredient to check for allergens across multiple databases.</p>
+                </div>
+                <div class="search-container" style="margin-top:12px">
+                    <span class="material-icons-round">search</span>
+                    <input type="text" class="search-input" id="ingredient-search"
+                           placeholder="e.g. tahini, casein, miso..."
+                           oninput="debounceIngredientSearch(this.value)">
+                </div>
+                <div id="ingredient-results"></div>
+            </div>
+
             <!-- Profile Section -->
             <div id="section-profile" class="page-section">
                 <div class="section-header">
@@ -151,6 +185,10 @@
                 <span class="material-icons-round">auto_awesome</span>
                 AI
             </button>
+            <button class="nav-item" onclick="showSection('lookup')" data-section="lookup">
+                <span class="material-icons-round">biotech</span>
+                Lookup
+            </button>
             <button class="nav-item" onclick="showSection('profile')" data-section="profile">
                 <span class="material-icons-round">person</span>
                 Profile
@@ -173,9 +211,9 @@
 
     <div id="toast" class="toast"></div>
 
-    <script src="/js/config.js?v=9"></script>
-    <script src="/js/auth.js?v=9"></script>
-    <script src="/js/app.js?v=9"></script>
+    <script src="/js/config.js?v=10"></script>
+    <script src="/js/auth.js?v=10"></script>
+    <script src="/js/app.js?v=10"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');

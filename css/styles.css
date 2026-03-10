@@ -1973,3 +1973,208 @@ body {
         justify-content: center;
     }
 }
+
+/* ============================================
+   FDA Recall Alerts Banner
+   ============================================ */
+.recall-banner {
+    background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.recall-banner-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #ef4444;
+    font-size: 14px;
+}
+
+.recall-banner-header strong {
+    flex: 1;
+}
+
+.recall-dismiss-all {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.recall-dismiss-all:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.recall-card {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+}
+
+.recall-card:last-child {
+    margin-bottom: 0;
+}
+
+.recall-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.recall-company {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.recall-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+}
+
+.recall-dismiss .material-icons-round {
+    font-size: 16px;
+}
+
+.recall-product {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    line-height: 1.4;
+}
+
+.recall-allergens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.recall-allergen-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(239,68,68,0.15);
+    color: #ef4444;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* ============================================
+   Ingredient Lookup
+   ============================================ */
+.lookup-intro {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.lookup-intro p {
+    margin: 0;
+}
+
+.lookup-result-card {
+    padding: 16px;
+}
+
+.lookup-result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.lookup-result-header h3 {
+    margin: 0;
+    font-size: 18px;
+    text-transform: capitalize;
+}
+
+.lookup-allergens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.lookup-allergen-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--surface-alt, rgba(255,255,255,0.06));
+    color: var(--text-primary);
+}
+
+.lookup-allergen-badge.lookup-conflict {
+    background: rgba(239,68,68,0.15);
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.lookup-sources {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.lookup-sources-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.lookup-source-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(34,197,94,0.1);
+    color: var(--accent);
+    font-weight: 500;
+}
+
+/* ============================================
+   External Verification (Dropdowns)
+   ============================================ */
+.dropdown-verification {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.verify-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 0;
+}
+
+.verify-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}

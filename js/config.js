@@ -77,6 +77,52 @@ const ALLERGEN_DERIVATIVES = {
     'legumes': ['lentils', 'chickpeas', 'black beans', 'kidney beans', 'lima beans', 'peas', 'fava beans', 'carob'],
 };
 
+// Enhanced derivatives from database (loaded async, supplements static list)
+let ENHANCED_DERIVATIVES = {};
+let derivativesLoaded = false;
+
+// Load enhanced derivatives from Supabase DB
+async function loadEnhancedDerivatives() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('allergen_derivatives_db')
+            .select('allergen_id, derivative_name');
+
+        if (error) throw error;
+        if (!data || !data.length) return;
+
+        const enhanced = {};
+        data.forEach(row => {
+            if (!enhanced[row.allergen_id]) enhanced[row.allergen_id] = [];
+            enhanced[row.allergen_id].push(row.derivative_name);
+        });
+        ENHANCED_DERIVATIVES = enhanced;
+        derivativesLoaded = true;
+        console.log(`Loaded ${data.length} enhanced derivatives from DB`);
+    } catch (err) {
+        console.log('Enhanced derivatives not available, using static list');
+    }
+}
+
+// Get all derivatives for an allergen (static + DB-enhanced, deduplicated)
+function getAllDerivatives(allergenId) {
+    const staticDerivs = ALLERGEN_DERIVATIVES[allergenId] || [];
+    const dbDerivs = ENHANCED_DERIVATIVES[allergenId] || [];
+
+    if (!dbDerivs.length) return staticDerivs;
+
+    // Merge and deduplicate (case-insensitive)
+    const seen = new Set(staticDerivs.map(d => d.toLowerCase()));
+    const merged = [...staticDerivs];
+    for (const d of dbDerivs) {
+        if (!seen.has(d.toLowerCase())) {
+            seen.add(d.toLowerCase());
+            merged.push(d);
+        }
+    }
+    return merged;
+}
+
 // Toast utility
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');

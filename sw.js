@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nora-v2';
+const CACHE_NAME = 'nora-v3';
 const urlsToCache = [
     '/',
     '/app.html',
