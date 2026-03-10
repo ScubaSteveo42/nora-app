@@ -160,16 +160,32 @@ async function queryUSDA(query: string) {
 // Check our own enhanced derivatives DB
 async function queryLocalDerivatives(query: string, supabase: any) {
   try {
-    // Check if the query matches any derivative name
-    const { data } = await supabase
+    const allergens = new Set<string>();
+
+    // Check if the query IS an allergen itself (e.g., "turmeric", "peanuts")
+    const { data: directMatch } = await supabase
+      .from('allergen_derivatives_db')
+      .select('allergen_id')
+      .eq('allergen_id', query)
+      .limit(1);
+
+    if (directMatch && directMatch.length > 0) {
+      allergens.add(directMatch[0].allergen_id);
+    }
+
+    // Check if the query matches any derivative name (e.g., "curcumin" → turmeric)
+    const { data: derivativeMatch } = await supabase
       .from('allergen_derivatives_db')
       .select('allergen_id')
       .ilike('derivative_name', `%${query}%`);
 
-    if (!data || !data.length) return null;
+    if (derivativeMatch) {
+      derivativeMatch.forEach((d: any) => allergens.add(d.allergen_id));
+    }
 
-    const allergens = [...new Set(data.map((d: any) => d.allergen_id))];
-    return { allergens, source: 'Nora Database' };
+    if (allergens.size === 0) return null;
+
+    return { allergens: [...allergens], source: 'Nora Database' };
   } catch {
     return null;
   }
