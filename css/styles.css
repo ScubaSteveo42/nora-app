@@ -2190,3 +2190,106 @@ body {
     gap: 6px;
     font-size: 12px;
 }
+
+/* ============================================
+   Compound Ingredients
+   ============================================ */
+.compound-ingredient {
+    border-bottom: 2px dashed rgba(255,255,255,0.4);
+    cursor: pointer;
+    position: relative;
+    padding-bottom: 1px;
+    transition: border-color 0.2s;
+    display: inline;
+}
+
+.compound-ingredient:hover,
+.compound-ingredient:focus {
+    border-bottom-color: rgba(255,255,255,0.7);
+    outline: none;
+}
+
+.compound-ingredient .compound-icon {
+    font-size: 14px;
+    vertical-align: middle;
+    margin-left: 2px;
+    transition: transform 0.2s;
+}
+
+.compound-expanded .compound-icon {
+    transform: rotate(180deg);
+}
+
+/* Compound with allergen conflict */
+.compound-danger {
+    border-bottom-color: #ff6b6b;
+    color: #ff6b6b;
+}
+
+.compound-danger:hover,
+.compound-danger:focus {
+    border-bottom-color: #ff8a8a;
+}
+
+/* Compound with known sub-ingredients, no conflict */
+.compound-known {
+    border-bottom-color: #a78bfa;
+    color: #a78bfa;
+}
+
+.compound-known:hover,
+.compound-known:focus {
+    border-bottom-color: #c4b5fd;
+}
+
+/* Compound with unknown sub-ingredients */
+.compound-unknown {
+    border-bottom-color: #fbbf24;
+    color: #fbbf24;
+}
+
+.compound-unknown:hover,
+.compound-unknown:focus {
+    border-bottom-color: #fcd34d;
+}
+
+/* Expanded sub-ingredient panel */
+.compound-sub-list {
+    display: block;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.85);
+}
+
+.compound-sub-list p {
+    margin: 4px 0 0;
+}
+
+.compound-sub-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.6);
+}
+
+.compound-sub-header .material-icons-round {
+    font-size: 14px;
+}
+
+.compound-sub-unknown {
+    border-color: rgba(251,191,36,0.3);
+    background: rgba(251,191,36,0.08);
+}
+
+.compound-sub-unknown .compound-sub-header {
+    color: #fbbf24;
+}

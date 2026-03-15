@@ -6,6 +6,7 @@ let userProfile = null;
 let currentUser = null;
 let restaurants = [];
 let currentMenuItems = []; // Store categorized menu items for detail view
+let currentCompoundMap = {}; // Compound ingredients lookup for current restaurant
 
 // ---- Navigation ----
 function showSection(sectionId) {
@@ -46,6 +47,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load restaurants regardless of auth
     await loadRestaurants();
+
+    // Compound ingredient expand/collapse handler (event delegation)
+    document.addEventListener('click', (e) => {
+        const el = e.target.closest('.compound-ingredient');
+        if (!el) return;
+        e.stopPropagation();
+
+        const compoundId = el.dataset.compoundId;
+        const hasSubs = el.dataset.hasSubs === 'true';
+
+        // Toggle: if already expanded, collapse
+        const existing = el.querySelector('.compound-sub-list');
+        if (existing) {
+            existing.remove();
+            el.classList.remove('compound-expanded');
+            return;
+        }
+
+        // Close any other expanded compound ingredients
+        document.querySelectorAll('.compound-sub-list').forEach(s => s.remove());
+        document.querySelectorAll('.compound-expanded').forEach(s => s.classList.remove('compound-expanded'));
+
+        if (hasSubs) {
+            // Find the compound data and render sub-ingredients
+            const compound = Object.values(currentCompoundMap).find(c => c.id === compoundId);
+            if (!compound) return;
+
+            let subText = escapeHTML(compound.sub_ingredients);
+            subText = highlightAllergens(subText);
+
+            const subList = document.createElement('div');
+            subList.className = 'compound-sub-list';
+            subList.innerHTML = `<div class="compound-sub-header">
+                <span class="material-icons-round">inventory_2</span> Contains:
+            </div>
+            <p>${subText}</p>`;
+            el.appendChild(subList);
+        } else {
+            // No sub-ingredients yet - show "ask staff" message
+            const subList = document.createElement('div');
+            subList.className = 'compound-sub-list compound-sub-unknown';
+            subList.innerHTML = `<div class="compound-sub-header">
+                <span class="material-icons-round">help_outline</span> Sub-ingredients not yet provided
+            </div>
+            <p>Ask your server about the specific ingredients in this item.</p>`;
+            el.appendChild(subList);
+        }
+        el.classList.add('compound-expanded');
+    });
 });
 
 // ---- Profile ----
@@ -294,6 +344,20 @@ async function viewRestaurant(id) {
             .single();
 
         if (error) throw error;
+
+        // Fetch compound ingredients for this restaurant
+        currentCompoundMap = {};
+        try {
+            const { data: compoundData } = await supabaseClient
+                .from('compound_ingredients')
+                .select('id, name, sub_ingredients, sub_allergens, source, verified')
+                .eq('restaurant_id', id);
+            (compoundData || []).forEach(ci => {
+                currentCompoundMap[ci.name.toLowerCase()] = ci;
+            });
+        } catch (e) {
+            console.log('Compound ingredients not available:', e.message);
+        }
 
         const safePercent = calculateSafetyScore(restaurant);
         const menuItems = restaurant.menu_items || [];
@@ -570,6 +634,63 @@ function toggleItemDropdown(itemId) {
     }
 }
 
+// ---- Compound Ingredient Rendering ----
+function renderIngredientsWithCompounds(ingredientText, compoundMap) {
+    // Split by comma, check each token against compound map
+    const parts = ingredientText.split(',');
+    return parts.map(part => {
+        const trimmed = part.trim();
+        // Strip HTML tags for matching (text may already have allergen highlights)
+        const plainText = trimmed.replace(/<[^>]*>/g, '');
+        const key = plainText.toLowerCase();
+        const compound = compoundMap[key];
+
+        if (!compound) return part; // Return original (preserving leading space)
+
+        const userAllergens = userProfile?.allergens || [];
+        const hasAllergenConflict = compound.sub_allergens?.some(a => userAllergens.includes(a));
+        const hasSubs = compound.sub_ingredients && compound.sub_ingredients.trim().length > 0;
+
+        let cssClass = 'compound-ingredient';
+        if (hasAllergenConflict) {
+            cssClass += ' compound-danger';
+        } else if (hasSubs) {
+            cssClass += ' compound-known';
+        } else {
+            cssClass += ' compound-unknown';
+        }
+
+        // Preserve leading whitespace from original part
+        const leadingSpace = part.match(/^(\s*)/)[0];
+
+        return `${leadingSpace}<span class="${cssClass}" tabindex="0" role="button"
+            data-compound-id="${compound.id}"
+            data-compound-name="${escapeHTML(compound.name)}"
+            data-has-subs="${hasSubs}"
+            aria-label="${plainText}${hasSubs ? ' - tap to see sub-ingredients' : ' - sub-ingredients unknown, ask staff'}">${trimmed}<span class="compound-icon material-icons-round" aria-hidden="true">${hasSubs ? 'expand_more' : 'help_outline'}</span></span>`;
+    }).join(',');
+}
+
+function highlightAllergens(text) {
+    if (!userProfile?.allergens?.length) return text;
+    const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
+    let highlighted = text;
+    userProfile.allergens.forEach(allergenId => {
+        const derivs = getAllDerivatives(allergenId);
+        const allergenDef = allAllergenDefs.find(d => d.id === allergenId);
+        const allergenName = allergenDef ? allergenDef.label.toLowerCase() : allergenId;
+
+        const nameRegex = new RegExp(`\\b(${allergenName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+        highlighted = highlighted.replace(nameRegex, '<mark class="ingredient-danger">$1</mark>');
+
+        derivs.forEach(d => {
+            const dRegex = new RegExp(`\\b(${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+            highlighted = highlighted.replace(dRegex, '<mark class="ingredient-warning">$1</mark>');
+        });
+    });
+    return highlighted;
+}
+
 function buildDropdownContent(item) {
     const allAllergenDefs = [...ALLERGENS.common, ...ALLERGENS.additional];
     const severity = userProfile?.allergen_severity || {};
@@ -653,23 +774,14 @@ function buildDropdownContent(item) {
         </div>`;
     }
 
-    // Ingredients with highlighting
+    // Ingredients with highlighting and compound ingredient awareness
     if (item.ingredients) {
         let ingredientText = escapeHTML(item.ingredients);
-        if (userProfile?.allergens?.length) {
-            userProfile.allergens.forEach(allergenId => {
-                const derivs = getAllDerivatives(allergenId);
-                const allergenDef = allAllergenDefs.find(d => d.id === allergenId);
-                const allergenName = allergenDef ? allergenDef.label.toLowerCase() : allergenId;
-
-                const nameRegex = new RegExp(`\\b(${allergenName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
-                ingredientText = ingredientText.replace(nameRegex, '<mark class="ingredient-danger">$1</mark>');
-
-                derivs.forEach(d => {
-                    const dRegex = new RegExp(`\\b(${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
-                    ingredientText = ingredientText.replace(dRegex, '<mark class="ingredient-warning">$1</mark>');
-                });
-            });
+        // First pass: highlight allergens/derivatives in the main ingredient text
+        ingredientText = highlightAllergens(ingredientText);
+        // Second pass: wrap compound ingredients with interactive spans
+        if (Object.keys(currentCompoundMap).length) {
+            ingredientText = renderIngredientsWithCompounds(ingredientText, currentCompoundMap);
         }
         html += `<div class="dropdown-ingredients">
             <div class="dropdown-ingredients-label">
@@ -788,27 +900,13 @@ function viewMenuItem(itemId) {
         </div>`;
     }
 
-    // Ingredients
+    // Ingredients with compound ingredient awareness
     let ingredientsHTML = '';
     if (item.ingredients) {
-        // Highlight allergen-related ingredients
         let ingredientText = escapeHTML(item.ingredients);
-        if (userProfile?.allergens?.length) {
-            userProfile.allergens.forEach(allergenId => {
-                const derivs = getAllDerivatives(allergenId);
-                const allergenDef = allAllergenDefs.find(d => d.id === allergenId);
-                const allergenName = allergenDef ? allergenDef.label.toLowerCase() : allergenId;
-
-                // Highlight the allergen name itself
-                const nameRegex = new RegExp(`\\b(${allergenName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
-                ingredientText = ingredientText.replace(nameRegex, '<mark class="ingredient-danger">$1</mark>');
-
-                // Highlight derivatives
-                derivs.forEach(d => {
-                    const dRegex = new RegExp(`\\b(${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
-                    ingredientText = ingredientText.replace(dRegex, '<mark class="ingredient-warning">$1</mark>');
-                });
-            });
+        ingredientText = highlightAllergens(ingredientText);
+        if (Object.keys(currentCompoundMap).length) {
+            ingredientText = renderIngredientsWithCompounds(ingredientText, currentCompoundMap);
         }
         ingredientsHTML = `<div class="detail-section">
             <div class="detail-section-title">

@@ -22,7 +22,8 @@ Nora is an allergen-focused dining app that helps people with food allergies fin
 ## Database Tables
 - `profiles` - user allergen profiles (allergens[], dietary_preferences[], religious_restrictions[])
 - `restaurants` - restaurant listings (name, cuisine, address, logo_emoji, verified)
-- `menu_items` - menu items with allergen data (allergens[], cross_contamination[], ask_staff)
+- `menu_items` - menu items with allergen data (allergens[], cross_contamination[], ask_staff, compound_ingredient_ids[])
+- `compound_ingredients` - ingredients that contain sub-ingredients (name, sub_ingredients, sub_allergens[], label_image_url, source, verified) - scoped per restaurant
 
 ## File Structure
 ```
