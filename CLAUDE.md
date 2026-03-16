@@ -48,7 +48,7 @@ manifest.json       - PWA manifest
 Files must be manually transferred to the VPS at `/var/www/norarocks/`. There is no CI/CD pipeline yet. The VPS is managed via Hostinger's web terminal (no SSH key access).
 
 ## Key Design Decisions
-- Dark theme (#0f172a background, #22c55e green accent)
+- Dark theme (#0f172a background, #3b82f6 blue accent)
 - Mobile-first responsive design
 - Allergen safety scoring: green (safe), yellow (cross-contamination risk), red (contains allergen)
 - Material Icons Round for iconography
